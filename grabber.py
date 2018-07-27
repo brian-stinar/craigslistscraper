@@ -109,8 +109,6 @@ class CraigslistGrabber:
         keys = list(self.stateLinks.keys()) # Mix it up to avoid bot detection
         shuffle(keys)
     
-        keys = ['dc']
-
         badKeys = ['puerto rico'] # Jacked up redirects on Spanish speaking ones, maybe I'll handle this for phase 2
 
         counter = 0 
