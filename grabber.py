@@ -92,7 +92,7 @@ class CraigslistGrabber:
                     for link in links:
                         cities.append(link['href'])
         else:
-            cities = ["https:" + state]
+            cities = [self.stateLinks[state]]
 
         cityLinks = {}
         for city in cities:
@@ -108,6 +108,8 @@ class CraigslistGrabber:
     def populateCityLinks(self):
         keys = list(self.stateLinks.keys()) # Mix it up to avoid bot detection
         shuffle(keys)
+    
+        keys = ['dc']
 
         badKeys = ['puerto rico'] # Jacked up redirects on Spanish speaking ones, maybe I'll handle this for phase 2
 
