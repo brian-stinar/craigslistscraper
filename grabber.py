@@ -9,8 +9,9 @@
 #    |
 #    ▼
 # State (Potentially lowest level)
-#    | 
-#    ▼ 
+#    |
+#    |  (optional region, like NY metro area) 
+#    ▼   
 # (Optional City, if present then the lowest level)
 #
 # Cities are NORMALLY the lowest level, but not always (Rhode Island, Puerto Rico.) 
@@ -30,16 +31,27 @@ class CraigslistGrabber:
     development = 1 
     stateLinks = {} 
     cityLinks = {}    
-    careAboutCategories = ['web-html-info-design', 
-        'software-qa-dba-etc', 
-        'systems-networking',]
+    #careAboutCategories = ['web-html-info-design', 
+    #    'software-qa-dba-etc', 
+    #    'systems-networking',]
+
+    careAboutCategories = {'web-html-info-design' : "sof",
+        "web-html-info-design goes" : "web", 
+        "systems-networking" : "sad"
+    }
+    
+    # software-qa-dba goes to sof 
+    # web-html-info-design goes to web
+    # systems-networking goes to sad 
+    # ...
+    # therefore, this should be a map, and not a list 
 
     totalResults = {}
     justUrls = []
 
     # Make this populate a states table. States don't change that often
     def downloadStates(self):
-        page = urllib2.urlopen('https://albuquerque.craigslist.org/')
+        page = urllib2.urlopen('https://albuquerque.craigslist.org/', timeout=10)
         soup = BeautifulSoup(page)
         soup.prettify()
         # Save this as a file, if in development mode
@@ -75,10 +87,12 @@ class CraigslistGrabber:
 
 
     def populateCity(self, state):
-        page = urllib2.urlopen(self.stateLinks[state])
-        #redirectedUrl = page.geturl() # Thanks Puerto Rican craigslist... They use 302s, which I don't handle by default
-        #print redirectedUrl # This still doesn't work
-        #page = urllib2.urlopen(redirectedUrl) 
+        print self.stateLinks[state]
+        page = urllib2.urlopen(self.stateLinks[state], timeout=10)
+        redirectedUrl = page.geturl() # Thanks Puerto Rican craigslist... They use 302s, which I don't handle by default
+        print redirectedUrl # This still doesn't worl
+        #page = urllib2.urlopen(redirectedUrl, timeout=10)
+        self.stateLinks[state] = redirectedUrl 
         soup = BeautifulSoup(page)
         soup.prettify()
 
@@ -90,15 +104,20 @@ class CraigslistGrabber:
                 if "geo-site-list" in str(ul): # I'd MUCH rather have the above selector working.
                     links = ul.findAll('a')
                     for link in links:
-                        cities.append(link['href'])
+                        text = link['href']
+                        if "http" not in text:
+                            text = "https:" + text
+                        cities.append(text)
+                
         else:
-            cities = [self.stateLinks[state]]
+            cities = [self.stateLinks[state][:-1]] # Weird extra / on single-city states...? 
+            # This only works for the non-divided cities. For those, I require additional logic
 
         cityLinks = {}
         for city in cities:
             categoryLinks = []
             for category in self.careAboutCategories: 
-                link = city + "/d/" + category + "/search/sof?lang=en&cc=us"
+                link = city + "/d/" + category + "/search/" + self.careAboutCategories[category] + "/?lang=en&cc=us"
                 categoryLinks.append(link)
                 self.justUrls.append(link)
             cityLinks[city] = categoryLinks
@@ -108,7 +127,10 @@ class CraigslistGrabber:
     def populateCityLinks(self):
         keys = list(self.stateLinks.keys()) # Mix it up to avoid bot detection
         shuffle(keys)
-    
+
+        #There's still something wrong with this...?
+        #keys = ['connecticut', 'virginia', 'indiana', 'new jersey', 'maryland', 'washington']
+
         badKeys = ['puerto rico'] # Jacked up redirects on Spanish speaking ones, maybe I'll handle this for phase 2
 
         counter = 0 
@@ -119,16 +141,10 @@ class CraigslistGrabber:
             self.populateCity(state)
 
             counter = counter + 1
-            time.sleep(random.uniform(1.0, 4.0)) # Add some random delays to mess up Craigslist's (probable) rate limiter
+            time.sleep(random.uniform(2.0, 5.0)) # Add some random delays to mess up Craigslist's (probable) rate limiter
 
-            #if counter >= 25:
-            #    return        
-
-        # foreach state in states
-        #   if the state is stand-alone (Puerto Rico, Washington DC, whatever)
-        #       Get the values we're interested in
-        #   foreach city in state
-        #       Get the vlaues we're interested in
+            if counter >= 2:
+                return        
 
 
     # Some states are listings by themselves, while others contain listings of cities (New Mexico) or neighborhoods (NY)
