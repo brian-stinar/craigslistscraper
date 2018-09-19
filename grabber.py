@@ -26,28 +26,33 @@ import random
 import time
 import json
 import sys
+import re
 
 class CraigslistGrabber:
     development = 1 
     stateLinks = {} 
     cityLinks = {}    
-    #careAboutCategories = ['web-html-info-design', 
-    #    'software-qa-dba-etc', 
-    #    'systems-networking',]
-
-    careAboutCategories = {'web-html-info-design' : "sof",
-        "web-html-info-design goes" : "web", 
-        "systems-networking" : "sad"
-    }
     
-    # software-qa-dba goes to sof 
-    # web-html-info-design goes to web
-    # systems-networking goes to sad 
-    # ...
-    # therefore, this should be a map, and not a list 
+    careAboutTerms = ["business / mgmt", "software / qa / dba", "systems / network", "web / info design"]
+    careAboutCategories = {}     
 
     totalResults = {}
     justUrls = []
+
+    def inferCategories(self):
+        # Load a URL, and then iterate through each category - doesn't matter which one - www.craigslist.com works
+        page = urllib2.urlopen('https://www.craigslist.com')
+        soup = BeautifulSoup(page)
+        soup.prettify()
+
+        spans = soup.findAll("span")
+        for span in spans: 
+            if span.text in self.careAboutTerms:
+                href = span.parent.get('href')
+                dashes = href.split('/')[2]
+                threeLetters = href.split('/')[-1]
+                print dashes + " --- " + threeLetters
+                self.careAboutCategories[str(dashes)] = str(threeLetters)
 
     # Make this populate a states table. States don't change that often
     def downloadStates(self):
@@ -143,8 +148,8 @@ class CraigslistGrabber:
             counter = counter + 1
             time.sleep(random.uniform(2.0, 5.0)) # Add some random delays to mess up Craigslist's (probable) rate limiter
 
-            if counter >= 2:
-                return        
+            #if counter >= 5:
+            #    return        
 
 
     # Some states are listings by themselves, while others contain listings of cities (New Mexico) or neighborhoods (NY)
@@ -154,6 +159,7 @@ class CraigslistGrabber:
             return True
 
         for category in self.careAboutCategories:
+            print category
             if category in str(soup):
                 return False
 
@@ -165,7 +171,8 @@ class CraigslistGrabber:
         print "hello world" 
     
 if __name__ == "__main__": 
-    craigslistGrabber = CraigslistGrabber()
+    craigslistGrabber = CraigslistGrabber() # Consider a constructor for this - getting complicated enough
+    craigslistGrabber.inferCategories() 
     craigslistGrabber.populateStateUrls()
     craigslistGrabber.populateCityLinks()
     '''for state in craigslistGrabber.totalResults:
