@@ -27,6 +27,8 @@ import time
 import json
 import sys
 import re
+import os
+import pprint
 
 class CraigslistGrabber:
     development = 1 
@@ -41,7 +43,7 @@ class CraigslistGrabber:
 
     def inferCategories(self):
         # Load a URL, and then iterate through each category - doesn't matter which one - www.craigslist.com works
-        page = urllib2.urlopen('https://www.craigslist.com')
+        page = urllib2.urlopen('https://www.craigslist.org')
         soup = BeautifulSoup(page)
         soup.prettify()
 
@@ -51,7 +53,6 @@ class CraigslistGrabber:
                 href = span.parent.get('href')
                 dashes = href.split('/')[2]
                 threeLetters = href.split('/')[-1]
-                print dashes + " --- " + threeLetters
                 self.careAboutCategories[str(dashes)] = str(threeLetters)
 
     # Make this populate a states table. States don't change that often
@@ -87,7 +88,8 @@ class CraigslistGrabber:
                 links = element.findNext('ul').findAll('a')
                 for link in links[:-1]: # Last one is ...more junk
                     #print link.string
-                    href = "https:" + link['href'] + '/?lang=en' # Make sure we only deal with English results, for now
+                    #href = "https:" + link['href'] + '/?lang=en' # Make sure we only deal with English results, for now
+                    href = "https:" + link['href']
                     self.stateLinks[link.text] = href
 
 
@@ -122,7 +124,9 @@ class CraigslistGrabber:
         for city in cities:
             categoryLinks = []
             for category in self.careAboutCategories: 
-                link = city + "/d/" + category + "/search/" + self.careAboutCategories[category] + "/?lang=en&cc=us"
+                #link = city + "/d/" + category + "/search/" + self.careAboutCategories[category] + "/?lang=en&cc=us"
+                #link = city + "/search/" + self.careAboutCategories[category] + "/?lang=en&cc=us"
+                link = city + "/search/" + self.careAboutCategories[category]
                 categoryLinks.append(link)
                 self.justUrls.append(link)
             cityLinks[city] = categoryLinks
@@ -142,14 +146,13 @@ class CraigslistGrabber:
         for state in keys:
             if state in badKeys:
                 continue
-            print str(counter) + "  - opening " + state
             self.populateCity(state)
 
             counter = counter + 1
             time.sleep(random.uniform(2.0, 5.0)) # Add some random delays to mess up Craigslist's (probable) rate limiter
 
-            #if counter >= 5:
-            #    return        
+            if counter >= 5:
+                return        
 
 
     # Some states are listings by themselves, while others contain listings of cities (New Mexico) or neighborhoods (NY)
@@ -159,34 +162,90 @@ class CraigslistGrabber:
             return True
 
         for category in self.careAboutCategories:
-            print category
             if category in str(soup):
                 return False
 
         print("ERROR - this function is not fully spec'd out for " + str(soup))
         traceback.print_stack()
+ 
+    def printXml(self, xmlFileName):       
         
+        if not self.totalResults:
+            print "Error - self.totalResults does not exist!"
+            sys.exit(1)
+
+        with open(xmlFileName, 'w') as outfile:
+            header = """<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.0">
+    <head>
+        <title>Subscriptions of Brian J. Stinar from Inoreader [https://www.inoreader.com]</title>
+    </head>
+    <body>
+        <outline text =\"Craigslist\" texts=\"Craigslist\"/>
+"""
+            outfile.write(header)
+
+            pp = pprint.PrettyPrinter(indent=4)
+
+            for state in self.totalResults:
+                print "state = " + state
+                counter = 0
+                if counter > 3: 
+                    break
+                print "self.totalResults[state] = ",
+                pp.pprint(self.totalResults[state]) 
+                for category in self.totalResults[state]:
+                    print "\tcategory = " + category 
+                    for city in self.totalResults[state][category]: 
+                        print "\t\tcity = " + city
+                        print("self.totalResults[state] = "),
+                        pp.pprint(self.totalResults[state])
+                        print ("state = " + str(state))
+                        print ("category = " + str(category))
+                        print("self.totalResults[state][state][category] = "), 
+                        pp.pprint(self.totalResults[state][category])
+
+                        for listing in self.totalResults[state][category][city]:
+                            print "\t\t\tlisting = " + str(listing)
+                            cityString = ""
+                            if len(city) >= 8: 
+                                cityString = city[8:].split('.')[0]
+                            categorySmall = str(listing.split('/')[-1])
+                            outfile.write("\t\t\t\t<outline text=\"" + state + " " + cityString + " " + categorySmall  + "\" title=\"" + state + " " + cityString + " " + categorySmall +  "\" type=\"rss\" xmlUrl=\"" + listing + "?format=rss\" htmlUrl=\"" + listing + "?format=rss\"\>\n")
+
+        with open(xmlFileName, 'rb+') as filehandle:
+            filehandle.seek(-1, os.SEEK_END)
+            filehandle.truncate()
+        
+        with open(xmlFileName, 'a') as outfile:
+            outfile.write("</outline>\n")
+            outfile.write("\t</body>\n")
+            outfile.write("</opml>") 
 
     def __readCraigslistFromFile(self, fileName):
         print "hello world" 
     
 if __name__ == "__main__": 
-    craigslistGrabber = CraigslistGrabber() # Consider a constructor for this - getting complicated enough
-    craigslistGrabber.inferCategories() 
-    craigslistGrabber.populateStateUrls()
-    craigslistGrabber.populateCityLinks()
-    '''for state in craigslistGrabber.totalResults:
-        print state
-        for city in craigslistGrabber.totalResults[state]:
-            print "\t\t" + city
-            for category in craigslistGrabber.careAboutCategories:
-                print "\t\t\t" + city + "/d/" + category + "/search/web"
-    '''
-    
-    prettyJson = json.dumps(craigslistGrabber.totalResults, sort_keys=True, indent=4, separators=(',', ': '))
-    outfile = open('everything.json', 'w')
-    outfile.write(prettyJson) 
 
-    prettyJson = json.dumps(craigslistGrabber.justUrls, sort_keys=True, indent=4, separators=(',', ': '))
-    outfile = open('justUrls.json', 'w')
-    outfile.write(prettyJson)
+    craigslistGrabber = CraigslistGrabber() # Consider a constructor for this - getting complicated enough
+
+    if len(sys.argv) == 1:
+        craigslistGrabber.inferCategories() 
+        craigslistGrabber.populateStateUrls()
+        craigslistGrabber.populateCityLinks()
+        
+        # Make a method that takes this json file as a constructor for the object, then I don't have to go through
+        # all of the population each time
+        prettyJson = json.dumps(craigslistGrabber.totalResults, sort_keys=True, indent=4, separators=(',', ': '))
+        outfile = open('everything.json', 'w')
+        outfile.write(prettyJson) 
+
+        prettyJson = json.dumps(craigslistGrabber.justUrls, sort_keys=True, indent=4, separators=(',', ': '))
+        outfile = open('justUrls.json', 'w')
+        outfile.write(prettyJson)
+
+    if len(sys.argv) == 2:
+        with open(sys.argv[1], 'r') as inputFile:
+            content = inputFile.read()
+            craigslistGrabber.totalResults = json.loads(content)
+            craigslistGrabber.printXml("out.xml")
