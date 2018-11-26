@@ -211,7 +211,7 @@ class CraigslistGrabber:
                             if len(city) >= 8: 
                                 cityString = city[8:].split('.')[0]
                             categorySmall = str(listing.split('/')[-1])
-                            outfile.write("\t\t\t\t<outline text=\"" + state + " " + cityString + " " + categorySmall  + "\" title=\"" + state + " " + cityString + " " + categorySmall +  "\" type=\"rss\" xmlUrl=\"" + listing + "?format=rss\" htmlUrl=\"" + listing + "?format=rss\"\>\n")
+                            outfile.write("\t\t\t\t<outline text=\"" + state + " " + cityString + " " + categorySmall  + "\" title=\"" + state + " " + cityString + " " + categorySmall +  "\" type=\"rss\" xmlUrl=\"" + listing + "?format=rss\" htmlUrl=\"" + listing + "?format=rss\"/>\n")
 
         with open(xmlFileName, 'rb+') as filehandle:
             filehandle.seek(-1, os.SEEK_END)
