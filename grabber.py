@@ -29,6 +29,7 @@ import sys
 import re
 import os
 import pprint
+from lxml import etree
 
 class CraigslistGrabber:
     development = 1 
@@ -211,6 +212,15 @@ class CraigslistGrabber:
                             if len(city) >= 8: 
                                 cityString = city[8:].split('.')[0]
                             categorySmall = str(listing.split('/')[-1])
+                            
+                            locationDescription = state + " " + cityString + " " + categorySmall
+                            outlineChild = etree.Element('outline')
+                            outlineChild.attrib['text'] = locationDescription
+                            outlineChild.attrib['title'] = locationDescription
+                            outlineChild.attrib['type'] = "rss"
+                            outlineChild.attrib['xmlUrl'] = listing + "?format=rss
+                        
+
                             outfile.write("\t\t\t\t<outline text=\"" + state + " " + cityString + " " + categorySmall  + "\" title=\"" + state + " " + cityString + " " + categorySmall +  "\" type=\"rss\" xmlUrl=\"" + listing + "?format=rss\" htmlUrl=\"" + listing + "?format=rss\"/>\n")
 
         with open(xmlFileName, 'rb+') as filehandle:
